@@ -1,9 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router'; 
+import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { OlympicService } from 'src/app/core/services/olympic.service';
-import { Chart, PieController, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
-import 'chartjs-plugin-annotation';
+import { OlympicData, Country, Participation } from 'src/app/core/models/olympics.interface';
 
 @Component({
   selector: 'app-home',
@@ -11,58 +10,31 @@ import 'chartjs-plugin-annotation';
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent implements OnInit {
-  public olympics$: Observable<any> = of(null);
-  public chartData: any = {
-    labels: [],
-    datasets: [],
-  };
-
+  public olympics$: Observable<OlympicData> = of({ countries: [] });
+  public chartData: { name: string; value: number; tooltip: string }[] = [];
   public totalMedals: number = 0;
   public totalCountries: number = 0;
   public totalJOs: number = 0;
+  public chartWidth: number = 500;
+  public chartHeight: number = 400;
 
-  public chartOptions: any = {
-    responsive: true,
-    plugins: {
-      tooltip: {
-        backgroundColor: '#00838f', // Fond du tooltip
-        titleColor: '#ffffff', // Couleur du titre
-        bodyColor: '#ffffff', // Couleur du texte
-        padding: 10,
-        displayColors: false, // Désactive la couleur du carré à gauche
-        callbacks: {
-          label: function (tooltipItem: any) {
-            return `🏅 ${tooltipItem.raw}`;
-          },
-        },
-      },
-      legend: {
-        display: false,
-      },
-    },
-    onClick: (event: any, elements: any[]) => {
-      if (elements.length > 0) {
-        const index = elements[0].index;
-        const country = this.chartData.labels[index];
-        this.goToDetail(country);
-      }
-    },
-  };
+
+  private updateChartSize(): void {
+    if (window.innerWidth < 700) {
+      this.chartWidth = 375;  // Plus petit pour mobile
+      this.chartHeight = 300;
+    } else {
+      this.chartWidth = 500;  // Taille normale
+      this.chartHeight = 400;
+    }
+  }
   
 
-  // Mapping des couleurs fixes pour les pays
-  private countryColors: { [key: string]: string } = {
-    Germany: '#793c52',
-    'United States': '#89a1db',
-    France: '#9680a2',
-    Spain: '#b8cbe7',
-    Italy: '#946065',
-  };
-
-  constructor(private olympicService: OlympicService, private router: Router) {} 
+  constructor(private olympicService: OlympicService, private router: Router) {}
 
   ngOnInit(): void {
-    Chart.register(PieController, ArcElement, Title, Tooltip, Legend, Filler);
+    this.updateChartSize();
+    window.addEventListener('resize', () => this.updateChartSize());
     this.olympics$ = this.olympicService.getOlympics();
     this.olympics$.subscribe((data) => {
       if (data) {
@@ -73,53 +45,48 @@ export class HomeComponent implements OnInit {
   }
 
   private prepareChartData(data: any): void {
-    const labels = data.map((country: any) => country.country);
-    const datasets = [
-      {
-        label: 'Medals Count',
-        data: data.map((country: any) => {
-          return country.participations.reduce(
-            (total: number, participation: any) => total + participation.medalsCount,
-            0
-          );
-        }),
-        backgroundColor: data.map((country: any) => this.getCountryColor(country.country)),
-        borderWidth: 1,
-      },
-    ];
-
-    this.chartData = {
-      labels: labels,
-      datasets: datasets,
-    };
+    this.chartData = data.map((country: Country) => {
+      const totalMedals = country.participations.reduce(
+        (total: number, participation: Participation) => total + participation.medalsCount,
+        0
+      );
+      return {
+        name: country.country, 
+        value: totalMedals,
+      };
+    });
   }
 
+
   private calculateStatistics(data: any): void {
-    this.totalMedals = data.reduce((sum: number, country: any) => {
-      return sum + country.participations.reduce((countrySum: number, participation: any) => {
-        return countrySum + participation.medalsCount;
-      }, 0);
+    this.totalMedals = data.reduce((sum: number, country: Country) => {
+      return (
+        sum +
+        country.participations.reduce((countrySum: number, participation: Participation) => {
+          return countrySum + participation.medalsCount;
+        }, 0)
+      );
     }, 0);
 
     this.totalCountries = data.length;
 
     const uniqueYears = new Set();
-    data.forEach((country: any) => {
-      country.participations.forEach((participation: any) => {
+    data.forEach((country: Country) => {
+      country.participations.forEach((participation: Participation) => {
         uniqueYears.add(participation.year);
       });
     });
     this.totalJOs = uniqueYears.size;
   }
 
-  // Récupérer la couleur en fonction du pays
-  private getCountryColor(country: string): string {
-    return this.countryColors[country] ;
+  // Méthode pour rediriger l'utilisateur vers la page de détails du pays
+  goToDetail(country: string): void {
+    this.router.navigate(['/country', country]);
   }
 
-
-
-  goToDetail(country: string): void {
-    this.router.navigate(['/country', country]); 
+  // Gérer l'événement de clic sur une portion du graphique
+  onChartClick(event: { name: string }): void {
+    const countryName = event.name; 
+    this.goToDetail(countryName);   
   }
 }
