@@ -1,3 +1,35 @@
-<h2>Olympic games app</h2>
-<hr />
-<p>{{ (olympics$ | async)?.length }} data loaded</p>
+<div class="stats">
+    <h1>Medals per Country</h1>
+  
+    <div class="stats-info">
+      <div class="stat-item">
+        <h2>Numbers of JOs</h2>
+        <p>{{ totalJOs }}</p> <!-- Affichage du nombre de Jeux Olympiques -->
+      </div>
+  
+      <div class="stat-item">
+        <h2>Number of Countries</h2>
+        <p>{{ totalCountries }}</p> <!-- Affichage du nombre de pays -->
+      </div>
+  
+    </div>
+
+<!-- Affichage du graphique -->
+<div *ngIf="olympics$ | async as olympics; else loading">
+  <div *ngIf="olympics; else error">
+    <div style="width: 100%; height: 400px;">
+      <canvas baseChart
+              [data]="chartData"
+              [options]="chartOptions"
+              [type]="'pie'">
+      </canvas>
+    </div>
+  </div>
+  <ng-template #error>
+    <p>Error loading data.</p>
+  </ng-template>
+</div>
+
+<ng-template #loading>
+  <p>Loading data...</p>
+</ng-template>
