@@ -1,0 +1,25 @@
+<button id="goBack" (click)="goBack()">Back</button>
+
+<div class="country-detail">
+    <h1>{{ countryData?.country }}</h1> <!-- Affichage du nom du pays -->
+  
+    <div class="stats-info">
+      <div class="stat-item">
+        <h2>Number of entries</h2>
+        <p>{{ totalParticipations }}</p> <!-- Nombre de participations -->
+      </div>
+  
+      <div class="stat-item">
+        <h2>Total number medals</h2>
+        <p>{{ totalMedals }}</p> <!-- Nombre de médailles -->
+      </div>
+  
+      <div class="stat-item">
+        <h2>Total number of athletes</h2>
+        <p>{{ totalAthletes }}</p> <!-- Nombre d'athlètes -->
+      </div>
+    </div>
+  
+    <canvas id="lineChart"></canvas>
+  </div>
+  
