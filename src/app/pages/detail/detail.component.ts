@@ -1,33 +1,41 @@
-import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { OlympicService } from 'src/app/core/services/olympic.service';
-import { Chart, LineController, LineElement, PointElement, LinearScale, Title, Tooltip, Legend, CategoryScale, Filler, ChartOptions } from 'chart.js';
-import { Subscription } from 'rxjs';
-import { OlympicData, Country, Participation } from 'src/app/core/models/olympics.interface';
+import { OlympicDetailService } from 'src/app/core/services/olympic-detail.service';
+import { Chart, CategoryScale, LinearScale, LineController, LineElement, PointElement, Title, Tooltip, Legend, Filler } from 'chart.js'; // Importer les composants nécessaires
+import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { Country } from 'src/app/core/models/country.interface';
 
 @Component({
   selector: 'app-detail',
   templateUrl: './detail.component.html',
   styleUrls: ['./detail.component.scss'],
 })
-export class DetailComponent implements OnInit, AfterViewInit, OnDestroy {
-  public countryData!: Country;
-  public chartData: { labels: string[]; datasets: { label: string; data: number[]; borderColor: string; backgroundColor: string; fill: boolean }[] } = { labels: [], datasets: [] };
-  public chartOptions: ChartOptions = {};  // Initialisation avec un objet vide
-  public totalParticipations = 0;
-  public totalMedals = 0;
-  public totalAthletes = 0;
+export class DetailComponent implements OnInit, OnDestroy, AfterViewInit {
+  public countryData$: Observable<Country | undefined> = new Observable();
   private chart!: Chart;
-  private olympicsSubscription: Subscription = new Subscription(); 
+
+  private destroy$ = new Subject<void>(); // Subject utilisé pour prendre en charge le désabonnement
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private olympicService: OlympicService
+    private olympicDetailService: OlympicDetailService,
+    private cdr: ChangeDetectorRef // Inject ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    Chart.register(LineController, LineElement, PointElement, LinearScale, Title, Tooltip, Legend, CategoryScale, Filler);
+      Chart.register(
+      CategoryScale,
+      LinearScale,
+      LineController,
+      LineElement,
+      PointElement,
+      Title,
+      Tooltip,
+      Legend,
+      Filler
+    );
 
     const countryName = this.route.snapshot.paramMap.get('country');
     
@@ -37,117 +45,44 @@ export class DetailComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    console.log('Nom du pays récupéré :', countryName);
+    // Récupérer les données de pays via le service
+    this.countryData$ = this.olympicDetailService.getCountryData(countryName);
+  }
 
-    this.olympicsSubscription = this.olympicService.getOlympics().subscribe((data) => {
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        return;
-      }
-
-      this.countryData = data.find((c: Country) => c.country === countryName);
-
-      if (!this.countryData) {
-        console.error("Aucune donnée trouvée pour le pays :", countryName);
+  ngAfterViewInit(): void {
+    // Gérer proprement l'abonnement
+    this.countryData$.pipe(takeUntil(this.destroy$)).subscribe((countryData) => {
+      if (!countryData) {
+        console.error("Aucune donnée trouvée pour le pays.");
         this.router.navigate(['/not-found']);
         return;
       }
 
-      console.log('Pays trouvé :', this.countryData);
+      // Préparer les données du graphique
+      const chartData = this.olympicDetailService.prepareChartData(countryData);
       
-      // Calcul des statistiques
-      this.totalParticipations = this.countryData.participations.length;
-      this.totalMedals = this.countryData.participations.reduce(
-        (sum: number, p: Participation) => sum + p.medalsCount, 0
-      );
-      this.totalAthletes = this.countryData.participations.reduce(
-        (sum: number, p: Participation) => sum + p.athleteCount, 0
-      );
+      // Créer le graphique via le service
+      const canvas = document.getElementById('lineChart') as HTMLCanvasElement;
+      if (canvas) {
+        this.chart = this.olympicDetailService.createChart(canvas, chartData);
+      }
 
-      this.prepareChartData();
-
-      setTimeout(() => {
-        this.createChart();
-      }, 100);
+      this.cdr.detectChanges();  // Assurer que la vue soit mise à jour avant de créer le graphique
     });
   }
 
-  ngAfterViewInit(): void {
-    if (this.chartData) {
-      this.createChart();
+  ngOnDestroy(): void {
+    // Désabonnement propre
+    this.destroy$.next();
+    this.destroy$.complete();
+
+    // Détruire le graphique si nécessaire
+    if (this.chart) {
+      this.chart.destroy();
     }
   }
 
   goBack(): void {
     this.router.navigate(['/']);
-  }
-
-  private prepareChartData(): void {
-    if (!this.countryData || !this.countryData.participations) {
-      console.error("Données invalides pour générer le graphique.");
-      return;
-    }
-
-    const years = this.countryData.participations.map((p: Participation) => p.year.toString());  // On convertit le number en string
-  const medals = this.countryData.participations.map((p: Participation) => p.medalsCount);
-
-  this.chartData = {
-    labels: years, 
-    datasets: [
-      {
-        label: `Medals of ${this.countryData.country}`,
-        data: medals,
-        borderColor: '#42A5F5',
-        backgroundColor: 'rgba(66, 165, 245, 0.2)',
-        fill: true,
-      },
-    ],
-  };
-
-    this.chartOptions = {
-      responsive: true,
-      scales: {
-        x: {
-          type: 'category',
-          title: { display: true, text: 'Dates' },
-        },
-        y: {
-          title: { display: false, text: 'Nombre de médailles' },
-          beginAtZero: true,
-        },
-      },
-      plugins: {
-        legend: { display: false },
-      },
-    };
-  }
-
-  private createChart(): void {
-    const canvas = document.getElementById('lineChart') as HTMLCanvasElement;
-    if (!canvas) {
-      console.error("Le canvas 'lineChart' n'a pas été trouvé.");
-      return;
-    }
-
-    // Si un graphique existe déjà, le détruire
-    if (this.chart) {
-      this.chart.destroy();
-    }
-
-    // Créer un nouveau graphique
-    this.chart = new Chart(canvas, {
-      type: 'line',
-      data: this.chartData,
-      options: this.chartOptions,
-    });
-  }
-
-  ngOnDestroy(): void {
-    if (this.chart) {
-      this.chart.destroy();
-    }
-    // Se désabonner de la souscription pour éviter les fuites de mémoire
-    if (this.olympicsSubscription) {
-      this.olympicsSubscription.unsubscribe();
-    }
   }
 }

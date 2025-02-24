@@ -4,46 +4,11 @@
     flex-direction: column;
     align-items: center;
     margin-top: 50px;
-  
-    h1 {
-      font-size: 22px;
-      font-weight: 100;
-      color: #fff;
-      margin-bottom: 10px;
-      background-color: #00838f;
-      border-radius: 10px;
-      padding: 5px 10px;
-    }
-  
+    
     .stats-info {
       display: flex;
       justify-content: space-around;
       gap: 20px;
-  
-      .stat-item {
-        text-align: center;
-        width: 150px;
-        border: solid 2px #00838f;
-        border-radius: 10px;
-        padding: 5px 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-  
-        h2 {
-          font-size: 16px;
-          color: #7f7f7f;
-          opacity: 0.7;
-          margin: 0;
-        }
-  
-        p {
-          font-size: 16px;
-          font-weight: bold;
-          color: #000;
-          margin: 0;
-        }
-      }
     }
   }
   
@@ -63,5 +28,13 @@
   @media (max-width: 700px) {
     ::ng-deep svg text {
       font-size: 14px !important; /* Change la taille des textes dans le graphique */
+    }
+    
+    .stats {
+      .stats-info {
+        flex-direction: column; 
+        align-items: center; 
+        gap: 10px; 
+      }
     }
   }
