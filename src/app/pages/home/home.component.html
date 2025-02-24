@@ -1,29 +1,28 @@
 <div class="stats">
-  <h1>Medals per Country</h1>
+  <app-stat-title [title]="'Medals per Country'"></app-stat-title>
 
   <div class="stats-info">
-    <div class="stat-item">
-      <h2>Numbers of JOs</h2>
-      <p>{{ totalJOs }}</p> <!-- Affichage du nombre de JO -->
-    </div>
+    <app-stat-item 
+      [title]="'Numbers of JOs'" 
+      [value]="totalJOs.toString() || '0'">
+    </app-stat-item>
 
-    <div class="stat-item">
-      <h2>Number of Countries</h2>
-      <p>{{ totalCountries }}</p> <!-- Affichage du nombre de pays -->
-    </div>
+    <app-stat-item 
+      [title]="'Number of Countries'" 
+      [value]="totalCountries.toString() || '0'">
+    </app-stat-item>
   </div>
 
   <!-- Affichage du graphique -->
   <div class="chart-container">
     <ngx-charts-pie-chart 
-    [view]="[chartWidth, chartHeight]"
+      [view]="[chartWidth, chartHeight]"
       [results]="chartData"
       [labels]="true"
       [legend]="false"
       [tooltipDisabled]="false"
-      (select)="onChartClick($event)" 
+      (select)="onChartClick($event)"
     >
     </ngx-charts-pie-chart>
   </div>
 </div>
-

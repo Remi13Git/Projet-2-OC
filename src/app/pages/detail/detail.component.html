@@ -1,25 +1,31 @@
 <button id="goBack" (click)="goBack()"> ← </button>
 
 <div class="country-detail">
-    <h1>{{ countryData?.country }}</h1> <!-- Affichage du nom du pays -->
-  
+  <div *ngIf="countryData$ | async as countryData; else loading">
+    <app-stat-title [title]="countryData?.country ?? 'Unknown Country'"></app-stat-title>
+
     <div class="stats-info">
-      <div class="stat-item">
-        <h2>Number of entries</h2>
-        <p>{{ totalParticipations }}</p> <!-- Nombre de participations -->
-      </div>
-  
-      <div class="stat-item">
-        <h2>Total number medals</h2>
-        <p>{{ totalMedals }}</p> <!-- Nombre de médailles -->
-      </div>
-  
-      <div class="stat-item">
-        <h2>Total number of athletes</h2>
-        <p>{{ totalAthletes }}</p> <!-- Nombre d'athlètes -->
-      </div>
+      <app-stat-item 
+        [title]="'Number of entries'" 
+        [value]="(countryData?.participations | totalParticipations)?.toString() || '0'">
+      </app-stat-item>
+
+      <app-stat-item 
+        [title]="'Total number of medals'" 
+        [value]="(countryData?.participations | totalMedals)?.toString() || '0'">
+      </app-stat-item>
+
+      <app-stat-item 
+        [title]="'Total number of athletes'" 
+        [value]="(countryData?.participations | totalAthletes)?.toString() || '0'">
+      </app-stat-item>
     </div>
-  
+
     <canvas id="lineChart"></canvas>
   </div>
-  
+
+  <!-- Template à afficher si les données sont en cours de chargement -->
+  <ng-template #loading>
+    <p>Chargement des données...</p>
+  </ng-template>
+</div>
