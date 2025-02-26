@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, of, Subject } from 'rxjs';
-import { OlympicStatisticsService } from 'src/app/core/services/olympic-statistics.service';
-import { Country } from 'src/app/core/models/country.interface';
+import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { OlympicDataService } from 'src/app/core/services/olympic-data.service';
+import { Country } from 'src/app/core/models/country.interface';
 
 @Component({
   selector: 'app-home',
@@ -12,13 +12,50 @@ import { takeUntil } from 'rxjs/operators';
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
-  public olympics$: Observable<Country[]>;  
   public chartData: { name: string; value: number; tooltip: string }[] = [];
   public totalMedals: number = 0;
   public totalCountries: number = 0;
   public totalJOs: number = 0;
   public chartWidth: number = 500;
   public chartHeight: number = 400;
+
+  constructor(
+    private olympicDataService: OlympicDataService, 
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.updateChartSize();
+    window.addEventListener('resize', () => this.updateChartSize());
+
+    // Charger les données uniquement si elles ne sont pas déjà disponibles
+    this.olympicDataService.getOlympics()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data) => {
+        if (!data) {
+          this.olympicDataService.loadInitialData().subscribe();
+        } else {
+          this.processData(data);
+        }
+      });
+
+    // Écouter les mises à jour des données
+    this.olympicDataService.getOlympics()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data) => {
+        if (data) {
+          this.processData(data);
+        }
+      });
+  }
+
+  private processData(data: Country[]): void {
+    this.chartData = this.olympicDataService.prepareChartData(data);
+    const stats = this.olympicDataService.calculateStatistics(data);
+    this.totalMedals = stats.totalMedals;
+    this.totalCountries = stats.totalCountries;
+    this.totalJOs = stats.totalJOs;
+  }
 
   private updateChartSize(): void {
     if (window.innerWidth < 700) {
@@ -30,38 +67,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  constructor(
-    private olympicStatisticsService: OlympicStatisticsService, 
-    private router: Router
-  ) {
-    this.olympics$ = of([]); // Initialisation d'Observable vide
-  }
-
-  ngOnInit(): void {
-    this.updateChartSize();
-    window.addEventListener('resize', () => this.updateChartSize());
-
-    this.olympicStatisticsService.getOlympicsData()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (data) => {
-          if (data && Array.isArray(data)) {
-            this.chartData = this.olympicStatisticsService.prepareChartData(data);
-            const stats = this.olympicStatisticsService.calculateStatistics(data);
-            this.totalMedals = stats.totalMedals;
-            this.totalCountries = stats.totalCountries;
-            this.totalJOs = stats.totalJOs;
-          }
-        },
-        error: (err) => {
-          console.error("Erreur lors de la récupération des données :", err);
-        }
-      });
-  }
-  
   ngOnDestroy(): void {
     this.destroy$.next(); 
-    this.destroy$.complete(); 
+    this.destroy$.complete();
   }
 
   goToDetail(country: string): void {
@@ -69,7 +77,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onChartClick(event: { name: string }): void {
-    const countryName = event.name;
-    this.goToDetail(countryName);
+    this.goToDetail(event.name);
   }
 }
